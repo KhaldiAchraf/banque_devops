@@ -1,0 +1,38 @@
+stages:
+  - package
+  - integration 
+  - deploy 
+
+push image docker:
+  image: docker:stable
+  stage: package
+  services:
+    - docker:20-dind
+
+  script:
+    - docker build -t banqueimage .
+    - docker login -u achraf29 -p lach291995
+    - docker tag banqueimage achraf29/banque
+    - docker push achraf29/banque
+
+
+integration test:
+  image: docker:stable
+  stage: integration
+  services:
+    - docker:18-dind
+  script:
+    - docker run  -d --name banqueimage --network banque-mysql  achraf29/banque
+    - sleep 10s
+    - TEST_RESULT=$(docker run  --network banque-mysql  lucj/curl -s http://banqueimage:8080)
+    - echo $TEST_RESULT
+  
+
+deploy-swarm:
+  stage: deploy
+  image: alpine:3.9
+  script:
+    - apk update && apk add curl curl-dev
+    - curl -X POST $PORTAINER_WEBHOOK
+
+#tag
